@@ -58,26 +58,32 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return BlocBuilder<FavoritesBloc, FavoritesState>(
       builder: (context, state){
         print("state is: $state");
-        if(state is FavoritesLoadingState){
-          int? playingSoundId;
-          final playerState = context.read<PlayerBloc>().state;
-          if (playerState is SoundPlayerPlayingState) {
-            playingSoundId = playerState.currentSound.id;
-          }
-          return SoundsGrid(
-            searchField: MySearchField(
-              controller: _searchController,
-              placeholder: "Search from favorites...",
-              onChanged: _onSearchChanged,
-            ),
-            sounds: state.loadedSounds,
-            favorites: state.favoriteIds,
-            playingSoundId: playingSoundId,
-            onFavoriteToggle: (sound, isFavorite) {
-              _toggleFavorite(sound.id, isFavorite);
-            },
-            onSoundTap: (sound) {
-              _togglePlaySound(sound);
+        if (state is SoundsInitial) {
+          return const Center(child: CupertinoActivityIndicator());
+        } else if(state is FavoritesLoadingState){
+          return BlocBuilder<PlayerBloc, SoundPlayerState>(
+
+            builder: (context, playerState){
+              int? playingSoundId;
+              if (playerState is SoundPlayerPlayingState) {
+                playingSoundId = playerState.currentSound.id;
+              }
+              return SoundsGrid(
+                searchField: MySearchField(
+                  controller: _searchController,
+                  placeholder: "Search from favorites...",
+                  onChanged: _onSearchChanged,
+                ),
+                sounds: state.loadedSounds,
+                favorites: state.favoriteIds,
+                playingSoundId: playingSoundId,
+                onFavoriteToggle: (sound, isFavorite) {
+                  _toggleFavorite(sound.id, isFavorite);
+                },
+                onSoundTap: (sound) {
+                  _togglePlaySound(sound);
+                },
+              );
             },
           );
         }
