@@ -24,9 +24,13 @@ class _MainScreenState extends State<MainScreen> {
             _buildAppBar(),
             _buildSegmentControl(),
             Expanded(
-              child: currentIndex == 0
-                  ? SoundsScreen()
-                  : FavoritesScreen(),
+              child: IndexedStack(
+                index: currentIndex,
+                children: const [
+                  SoundsScreen(),
+                  FavoritesScreen(),
+                ],
+              ),
             ),
           ],
         ),
@@ -62,7 +66,7 @@ class _MainScreenState extends State<MainScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -92,7 +96,7 @@ class _MainScreenState extends State<MainScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -144,7 +148,7 @@ class _MainScreenState extends State<MainScreen> {
           boxShadow: isSelected
               ? [
             BoxShadow(
-              color: AppColors.accent.withOpacity(0.4),
+              color: AppColors.accent.withValues(alpha: 0.4),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

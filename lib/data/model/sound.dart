@@ -13,12 +13,18 @@ class Sound {
     this.isFavorite = false,
   });
 
-  Sound copyWith({bool? isFavorite}) {
+  Sound copyWith({
+    int? id,
+    String? name,
+    String? assetPath,
+    Duration? duration,
+    bool? isFavorite,
+  }) {
     return Sound(
-      id: id,
-      name: name,
-      assetPath: assetPath,
-      duration: duration,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      assetPath: assetPath ?? this.assetPath,
+      duration: duration ?? this.duration,
       isFavorite: isFavorite ?? this.isFavorite,
     );
   }

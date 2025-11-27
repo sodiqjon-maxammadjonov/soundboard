@@ -1,3 +1,5 @@
+import 'package:soundboard/ui/widget/field/search_field.dart';
+
 import '../../../data/library/libray.dart';
 
 class SoundsScreen extends StatefulWidget {
@@ -8,43 +10,83 @@ class SoundsScreen extends StatefulWidget {
 }
 
 class _SoundsScreenState extends State<SoundsScreen> {
-  final Set<int> _favorites = {};
+  final TextEditingController _searchController = TextEditingController();
 
-  void _toggleFavorite(int index) {
-    setState(() {
-      if (_favorites.contains(index)) {
-        _favorites.remove(index);
-        HapticFeedback.lightImpact();
-      } else {
-        _favorites.add(index);
-        HapticFeedback.mediumImpact();
-      }
-    });
+  @override
+  void initState() {
+    super.initState();
+    context.read<SoundsBloc>().add(LoadSoundsEvent());
   }
 
-  void _openSoundDetail(int index) {
-    HapticFeedback.mediumImpact();
-    Navigator.of(context).push(
-      CupertinoPageRoute(
-        builder: (context) => SoundDetailScreen(
-          soundIndex: index,
-          soundName: 'Meme Sound ${index + 1}',
-          duration: '0:${(index + 5).toString().padLeft(2, '0')}',
-          color: AppColors.accent,
-          isFavorite: _favorites.contains(index),
-          onFavoriteToggle: () => _toggleFavorite(index),
-        ),
-      ),
+  void _onSearchChanged(String query) {
+    context.read<FavoritesBloc>().add(
+      LoadFavoriteSoundsEvent(searchQuery: query),
     );
+  }
+
+  void _toggleFavorite(int id, bool isFavorite) {
+    if (isFavorite) {
+      context.read<SoundsBloc>().add(RemoveFavoriteEvent(id));
+      context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
+      HapticFeedback.lightImpact();
+    } else {
+      context.read<SoundsBloc>().add(AddFavoriteEvent(id));
+      context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
+      HapticFeedback.mediumImpact();
+    }
+  }
+
+  void _togglePlaySound(Sound sound) {
+    HapticFeedback.mediumImpact();
+    final playerState = context.read<PlayerBloc>().state;
+
+    if (playerState is SoundPlayerPlayingState &&
+        playerState.currentSound.id == sound.id) {
+      context.read<PlayerBloc>().add(StopSoundEvent());
+    } else {
+      context.read<PlayerBloc>().add(PlaySoundEvent(sound));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SoundsGrid(
-      itemCount: 100,
-      favorites: _favorites,
-      onFavoriteToggle: _toggleFavorite,
-      onOpenDetail: _openSoundDetail,
+    return BlocBuilder<SoundsBloc, SoundsState>(
+      buildWhen: (previous, current) => true,
+      builder: (context, state) {
+        if (state is SoundsInitial) {
+          return const Center(child: CupertinoActivityIndicator());
+        } else if (state is SoundsLoadingProgressState) {
+          return BlocBuilder<PlayerBloc, SoundPlayerState>(
+            builder: (context, playerState) {
+              int? playingSoundId;
+              if (playerState is SoundPlayerPlayingState) {
+                playingSoundId = playerState.currentSound.id;
+              }
+
+              return SoundsGrid(
+                searchField: MySearchField(
+                  controller: _searchController,
+                  placeholder: 'Search sound...',
+                  onChanged: _onSearchChanged,
+                ),
+                sounds: state.loadedSounds,
+                favorites: state.favoriteIds,
+                playingSoundId: playingSoundId,
+                onFavoriteToggle: (sound, isFavorite) {
+                  _toggleFavorite(sound.id, isFavorite);
+                },
+                onSoundTap: (sound) {
+                  _togglePlaySound(sound);
+                },
+              );
+            },
+          );
+        } else if (state is SoundsErrorState) {
+          return Center(child: Text(state.message));
+        } else {
+          return const SizedBox.shrink();
+        }
+      },
     );
   }
 }
