@@ -1,6 +1,9 @@
+
+
 import 'package:flutter/material.dart';
-import 'package:soundboard/ui/view/favorites/favorites_screen.dart';
-import 'package:soundboard/ui/view/sounds/sounds_screen.dart';
+import 'package:soundboard/data/const/const_values.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 import '../../../data/library/libray.dart';
 
@@ -12,8 +15,23 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  final donateUrl = ConstValues.donateLink;
   int currentIndex = 0;
+  void _openRateApp() async {
+    final InAppReview inAppReview = InAppReview.instance;
+    if (await inAppReview.isAvailable()) {
+      inAppReview.requestReview();
+    }
+  }
 
+  // void _openDonate() async {
+  //   final uri = Uri.parse(donateUrl);
+  //   if (await canLaunchUrl(uri)) {
+  //     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  //   } else {
+  //     print('Could not launch $donateUrl');
+  //   }
+  // }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,7 +97,50 @@ class _MainScreenState extends State<MainScreen> {
                 color: AppColors.text,
                 size: 20,
               ),
-              onPressed: () {},
+              onPressed: () {
+                showCupertinoModalPopup(
+                  context: context,
+                  builder: (context) {
+                    return CupertinoActionSheet(
+                      title: const Text('Options'),
+                      actions: [
+
+                        CupertinoActionSheetAction(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            // BAHOLASH ACTION
+                            _openRateApp();
+                          },
+                          child: const Text('Rate App'),
+                        ),
+
+                        CupertinoActionSheetAction(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            // CONTACT ACTION
+                            // _contactUs();
+                          },
+                          child: const Text('Contact Us'),
+                        ),
+
+                        CupertinoActionSheetAction(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            // _openDonate();
+                          },
+                          child: const Text('Donate / Support'),
+                        ),
+                      ],
+                      cancelButton: CupertinoActionSheetAction(
+                        onPressed: () => Navigator.pop(context),
+                        isDefaultAction: true,
+                        child: const Text('Canscel'),
+                      ),
+                    );
+                  },
+                );
+              },
+
             ),
           ),
         ],

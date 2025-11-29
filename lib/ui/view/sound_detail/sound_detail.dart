@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../data/library/libray.dart';
@@ -47,7 +48,115 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
 
     _controller.forward();
   }
+  Future<void> _shareSound() async {
+    try {
+      // Loading dialog
+      showCupertinoDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CupertinoActivityIndicator(radius: 15),
+                const SizedBox(height: 12),
+                MyText(
+                  content: "Preparing to share...",
+                  fontSize: 16,
+                  color: AppColors.text,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
+      // Vaqtinchalik faylni yaratish
+      final tempDir = await getTemporaryDirectory();
+      final fileName = '${widget.sound.name.replaceAll(' ', '_')}.mp3';
+      final tempFilePath = '${tempDir.path}/$fileName';
+      final tempFile = File(tempFilePath);
+
+      // Asset'dan ma'lumot o'qish va vaqtinchalik faylga yozish
+      final data = await rootBundle.load(widget.sound.assetPath);
+      await tempFile.writeAsBytes(data.buffer.asUint8List());
+
+      // Loading dialog'ni yopish
+      Navigator.of(context).pop();
+
+      // Share qilish
+      final result = await Share.shareXFiles(
+        [XFile(tempFilePath)],
+        text: 'Check out this sound: ${widget.sound.name}',
+        subject: 'Meme Sound',
+      );
+
+      // Share tugagandan keyin vaqtinchalik faylni o'chirish
+      if (result.status == ShareResultStatus.success) {
+        HapticFeedback.mediumImpact();
+        // Biroz kutib, keyin faylni o'chirish
+        Future.delayed(const Duration(seconds: 2), () async {
+          try {
+            if (await tempFile.exists()) {
+              await tempFile.delete();
+            }
+          } catch (e) {
+            print("Temp file delete error: $e");
+          }
+        });
+      } else if (result.status == ShareResultStatus.dismissed) {
+        // Agar bekor qilingan bo'lsa, faylni darhol o'chirish
+        try {
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+        } catch (e) {
+          print("Temp file delete error: $e");
+        }
+      }
+    } catch (e) {
+      print("Share error: $e");
+
+      // Loading dialog'ni yopish
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      await showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(
+                CupertinoIcons.xmark_circle_fill,
+                color: Colors.red,
+                size: 24,
+              ),
+              SizedBox(width: 8),
+              Text("Share Failed"),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(e.toString()),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text("OK"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      );
+    }
+  }
   void _togglePlaySound(Sound sound) {
     HapticFeedback.mediumImpact();
     final playerState = context.read<PlayerBloc>().state;
@@ -59,7 +168,249 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       context.read<PlayerBloc>().add(PlaySoundEvent(sound));
     }
   }
+  Future<void> _downloadSound() async {
+    try {
+      // Loading dialog
+      showCupertinoDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CupertinoActivityIndicator(radius: 15),
+                const SizedBox(height: 12),
+                MyText(
+                  content: "Downloading...",
+                  fontSize: 16,
+                  color: AppColors.text,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
+      // Permission check - barcha Android versiyalari uchun
+      PermissionStatus status = PermissionStatus.denied;
+
+      if (Platform.isAndroid) {
+        // Avval audio permission sinab ko'ramiz (Android 13+)
+        status = await Permission.audio.request();
+
+        // Agar audio ishlamasa, storage'ni sinab ko'ramiz
+        if (status.isDenied) {
+          status = await Permission.storage.request();
+        }
+
+        // Agar hali ham yo'q bo'lsa, manageExternalStorage'ni sinab ko'ramiz
+        if (status.isDenied) {
+          status = await Permission.manageExternalStorage.request();
+        }
+      } else {
+        status = PermissionStatus.granted;
+      }
+
+      if (status.isGranted || status.isLimited) {
+        // Download papkasini topish
+        Directory? directory;
+        String displayPath = "";
+
+        if (Platform.isAndroid) {
+          // Bir nechta yo'lni sinab ko'ramiz
+          final possiblePaths = [
+            '/storage/emulated/0/Download/MemeSounds',
+            '/storage/emulated/0/Downloads/MemeSounds',
+            '/sdcard/Download/MemeSounds',
+          ];
+
+          for (var path in possiblePaths) {
+            final dir = Directory(path);
+            try {
+              if (!await dir.exists()) {
+                await dir.create(recursive: true);
+              }
+              if (await dir.exists()) {
+                directory = dir;
+                displayPath = path.contains('Download/')
+                    ? "Download/MemeSounds"
+                    : "Downloads/MemeSounds";
+                break;
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+
+          // Agar yuqoridagilar ishlamasa, getExternalStorageDirectory'dan foydalanamiz
+          if (directory == null) {
+            final externalDir = await getExternalStorageDirectory();
+            directory = Directory('${externalDir!.path}/MemeSounds');
+            displayPath = "Music/MemeSounds";
+
+            if (!await directory.exists()) {
+              await directory.create(recursive: true);
+            }
+          }
+        } else {
+          directory = await getApplicationDocumentsDirectory();
+          displayPath = "Files";
+        }
+
+        // Fayl nomi
+        final fileName = '${widget.sound.name.replaceAll(' ', '_')}.mp3';
+        final filePath = '${directory.path}/$fileName';
+        final file = File(filePath);
+
+        // Asset'dan ma'lumot o'qish va saqlash
+        final data = await rootBundle.load(widget.sound.assetPath);
+        await file.writeAsBytes(data.buffer.asUint8List());
+
+        // Loading dialog'ni yopish
+        Navigator.of(context).pop();
+
+        // Success dialog
+        await showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.check_mark_circled_solid,
+                  color: widget.color,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                const Text("Downloaded!"),
+              ],
+            ),
+            content: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                children: [
+                  Text(
+                    "Saved to:",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "$displayPath/\n$fileName",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: widget.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text("OK"),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  HapticFeedback.lightImpact();
+                },
+              ),
+            ],
+          ),
+        );
+
+        HapticFeedback.mediumImpact();
+
+      } else if (status.isPermanentlyDenied) {
+        // Loading dialog'ni yopish
+        Navigator.of(context).pop();
+
+        await showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text("Permission Required"),
+            content: const Text(
+              "Storage permission is required to download sounds. Please enable it in Settings.",
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text("Cancel"),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                child: const Text("Open Settings"),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  openAppSettings();
+                },
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Loading dialog'ni yopish
+        Navigator.of(context).pop();
+
+        await showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text("Permission Denied"),
+            content: const Text("Storage permission is required to download sounds."),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text("OK"),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      print("Download error: $e");
+
+      // Loading dialog'ni yopish
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      await showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(
+                CupertinoIcons.xmark_circle_fill,
+                color: Colors.red,
+                size: 24,
+              ),
+              SizedBox(width: 8),
+              Text("Download Failed"),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(e.toString()),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text("OK"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      );
+    }
+  }
   @override
   void dispose() {
     _controller.dispose();
@@ -331,15 +682,9 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 color: AppColors.card,
                                 borderRadius: BorderRadius.circular(14),
-                                onPressed: () {
-                                  final soundFilePath = widget.sound.assetPath;
-                                final soundName = widget.sound.name;
-
+                                onPressed: () async {
                                   HapticFeedback.lightImpact();
-                                  Share.share(
-                                      "Sound: $soundName \nYuklab olish linki: $soundFilePath",
-                                      subject: "Funny!"
-                                  );
+                                  await _shareSound();
                                 },
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -371,7 +716,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                                 borderRadius: BorderRadius.circular(14),
                                 onPressed: () {
                                   HapticFeedback.lightImpact();
-                                  // TODO: download event
+                                  _downloadSound();
                                 },
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,

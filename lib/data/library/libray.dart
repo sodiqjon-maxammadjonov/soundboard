@@ -10,7 +10,9 @@ export 'package:hive_flutter/hive_flutter.dart';
 export 'package:bloc/bloc.dart';
 export 'package:soundboard/data/repo/player/player_repo.dart';
 export 'dart:async';
-
+export 'dart:io';
+export 'package:path_provider/path_provider.dart';
+export 'package:permission_handler/permission_handler.dart';
 
 //data
 export 'package:soundboard/ui/theme/colors.dart';
@@ -27,6 +29,8 @@ export 'package:soundboard/data/bloc/player/player_bloc.dart';
 export 'package:soundboard/data/bloc/favorites/favorites_bloc.dart';
 export 'package:soundboard/data/repo/favorites/favorites_repo.dart';
 export 'package:soundboard/data/repo/sounds/sounds_repo.dart';
-
+export 'package:in_app_review/in_app_review.dart';
+export 'package:soundboard/ui/view/favorites/favorites_screen.dart';
+export 'package:soundboard/ui/view/sounds/sounds_screen.dart';
 
 

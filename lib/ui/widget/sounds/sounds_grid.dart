@@ -1,4 +1,5 @@
 import '../../../data/library/libray.dart';
+import '../ad/banner_ad_widget.dart';
 
 class SoundsGrid extends StatelessWidget {
   final List<Sound> sounds;
@@ -23,42 +24,117 @@ class SoundsGrid extends StatelessWidget {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-
         SliverToBoxAdapter(
           child: searchField,
         ),
 
         SliverPadding(
           padding: const EdgeInsets.all(20),
-          sliver: SliverGrid(
+          sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                final sound = sounds[index];
-                final color = _getAccentColor(index);
+                // Har 3 qatordan keyin (6 ta card) reklama qo'shamiz
+                // 2 ustun x 3 qator = 6 ta card
+                final adInterval = 6; // Har 6 ta card'dan keyin ad
+
+                // Nechta ad ko'rsatilgan
+                final numberOfAds = index ~/ (adInterval + 1);
+                // Haqiqiy sound index
+                final soundIndex = index - numberOfAds;
+
+                // Agar bu index reklama joyi bo'lsa
+                if (index % (adInterval + 1) == adInterval) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Center(
+                      child: BannerAdWidget(
+                        key: ValueKey('ad_$numberOfAds'),
+                      ),
+                    ),
+                  );
+                }
+
+                // Agar sound'lar tugagan bo'lsa
+                if (soundIndex >= sounds.length) {
+                  return const SizedBox.shrink();
+                }
+
+                final sound = sounds[soundIndex];
+                final color = _getAccentColor(soundIndex);
                 final isFavorite = favorites.contains(sound.id);
                 final isPlaying = playingSoundId == sound.id;
 
-                return _SoundCard(
-                  sound: sound,
-                  color: color,
-                  isFavorite: isFavorite,
-                  isPlaying: isPlaying,
-                  onTap: () => onSoundTap(sound),
-                  onFavoriteToggle: () => onFavoriteToggle(sound, isFavorite),
-                );
+                // Har 2 ta card uchun Row yaratamiz
+                if (soundIndex % 2 == 0) {
+                  final nextIndex = soundIndex + 1;
+                  final hasNext = nextIndex < sounds.length;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _SoundCard(
+                            sound: sound,
+                            color: color,
+                            isFavorite: isFavorite,
+                            isPlaying: isPlaying,
+                            onTap: () => onSoundTap(sound),
+                            onFavoriteToggle: () => onFavoriteToggle(sound, isFavorite),
+                          ),
+                        ),
+                        if (hasNext) ...[
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _buildSoundCard(
+                              context,
+                              nextIndex,
+                            ),
+                          ),
+                        ] else
+                          const Expanded(child: SizedBox()),
+                      ],
+                    ),
+                  );
+                } else {
+                  // Toq index'dagi card'lar Row ichida render qilingan
+                  return const SizedBox.shrink();
+                }
               },
-              childCount: sounds.length,
-            ),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              childAspectRatio: 1.2,
+              childCount: _calculateItemCount(),
             ),
           ),
         ),
       ],
     );
+  }
+
+  Widget _buildSoundCard(BuildContext context, int soundIndex) {
+    if (soundIndex >= sounds.length) {
+      return const SizedBox();
+    }
+
+    final sound = sounds[soundIndex];
+    final color = _getAccentColor(soundIndex);
+    final isFavorite = favorites.contains(sound.id);
+    final isPlaying = playingSoundId == sound.id;
+
+    return _SoundCard(
+      sound: sound,
+      color: color,
+      isFavorite: isFavorite,
+      isPlaying: isPlaying,
+      onTap: () => onSoundTap(sound),
+      onFavoriteToggle: () => onFavoriteToggle(sound, isFavorite),
+    );
+  }
+
+  int _calculateItemCount() {
+    // Har 6 ta sound'dan keyin 1 ta ad
+    final adInterval = 6;
+    final numberOfAds = sounds.length ~/ adInterval;
+    // Juft sonli qatorlar + reklamalar
+    return ((sounds.length + 1) ~/ 2) + numberOfAds;
   }
 
   Color _getAccentColor(int index) {
@@ -73,6 +149,8 @@ class SoundsGrid extends StatelessWidget {
     return colors[index % colors.length];
   }
 }
+
+// _SoundCard va boshqa class'lar o'zgarmaydi...
 
 class _SoundCard extends StatelessWidget {
   final Sound sound;

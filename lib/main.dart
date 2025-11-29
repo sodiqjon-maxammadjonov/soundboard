@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
       child: CupertinoApp(
         debugShowCheckedModeBanner: false,
         title: 'Flutter Demo',
-        home: MainScreen(),
+        home: const MainScreen(),
       ),
     );
   }
