@@ -27,7 +27,7 @@ class _MySearchFieldState extends State<MySearchField> {
   }
 
   void _listener() {
-    setState(() {}); // matn o'zgarsa suffix ni yangilaydi
+    setState(() {});
   }
 
   @override

@@ -83,24 +83,19 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       final tempFilePath = '${tempDir.path}/$fileName';
       final tempFile = File(tempFilePath);
 
-      // Asset'dan ma'lumot o'qish va vaqtinchalik faylga yozish
       final data = await rootBundle.load(widget.sound.assetPath);
       await tempFile.writeAsBytes(data.buffer.asUint8List());
 
-      // Loading dialog'ni yopish
       Navigator.of(context).pop();
 
-      // Share qilish
       final result = await Share.shareXFiles(
         [XFile(tempFilePath)],
         text: 'Check out this sound: ${widget.sound.name}',
         subject: 'Meme Sound',
       );
 
-      // Share tugagandan keyin vaqtinchalik faylni o'chirish
       if (result.status == ShareResultStatus.success) {
         HapticFeedback.mediumImpact();
-        // Biroz kutib, keyin faylni o'chirish
         Future.delayed(const Duration(seconds: 2), () async {
           try {
             if (await tempFile.exists()) {
@@ -111,7 +106,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
           }
         });
       } else if (result.status == ShareResultStatus.dismissed) {
-        // Agar bekor qilingan bo'lsa, faylni darhol o'chirish
         try {
           if (await tempFile.exists()) {
             await tempFile.delete();
@@ -123,7 +117,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
     } catch (e) {
       print("Share error: $e");
 
-      // Loading dialog'ni yopish
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -170,7 +163,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
   }
   Future<void> _downloadSound() async {
     try {
-      // Loading dialog
       showCupertinoDialog(
         context: context,
         barrierDismissible: false,
@@ -197,19 +189,15 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
         ),
       );
 
-      // Permission check - barcha Android versiyalari uchun
       PermissionStatus status = PermissionStatus.denied;
 
       if (Platform.isAndroid) {
-        // Avval audio permission sinab ko'ramiz (Android 13+)
         status = await Permission.audio.request();
 
-        // Agar audio ishlamasa, storage'ni sinab ko'ramiz
         if (status.isDenied) {
           status = await Permission.storage.request();
         }
 
-        // Agar hali ham yo'q bo'lsa, manageExternalStorage'ni sinab ko'ramiz
         if (status.isDenied) {
           status = await Permission.manageExternalStorage.request();
         }
@@ -218,12 +206,10 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       }
 
       if (status.isGranted || status.isLimited) {
-        // Download papkasini topish
         Directory? directory;
         String displayPath = "";
 
         if (Platform.isAndroid) {
-          // Bir nechta yo'lni sinab ko'ramiz
           final possiblePaths = [
             '/storage/emulated/0/Download/MemeSounds',
             '/storage/emulated/0/Downloads/MemeSounds',
@@ -248,7 +234,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
             }
           }
 
-          // Agar yuqoridagilar ishlamasa, getExternalStorageDirectory'dan foydalanamiz
           if (directory == null) {
             final externalDir = await getExternalStorageDirectory();
             directory = Directory('${externalDir!.path}/MemeSounds');
@@ -263,19 +248,15 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
           displayPath = "Files";
         }
 
-        // Fayl nomi
         final fileName = '${widget.sound.name.replaceAll(' ', '_')}.mp3';
         final filePath = '${directory.path}/$fileName';
         final file = File(filePath);
 
-        // Asset'dan ma'lumot o'qish va saqlash
         final data = await rootBundle.load(widget.sound.assetPath);
         await file.writeAsBytes(data.buffer.asUint8List());
 
-        // Loading dialog'ni yopish
         Navigator.of(context).pop();
 
-        // Success dialog
         await showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
@@ -330,7 +311,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
         HapticFeedback.mediumImpact();
 
       } else if (status.isPermanentlyDenied) {
-        // Loading dialog'ni yopish
         Navigator.of(context).pop();
 
         await showCupertinoDialog(
@@ -377,7 +357,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
     } catch (e) {
       print("Download error: $e");
 
-      // Loading dialog'ni yopish
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -507,7 +486,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
 
                 const Spacer(),
 
-                // CENTER CONTENT
                 ScaleTransition(
                   scale: _scaleAnimation,
                   child: Column(
@@ -558,17 +536,18 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
 
                       const SizedBox(height: 40),
 
-                      // Sound Name
-                      MyText(
-                        content: widget.sound.name,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: MyText(
+                          content: widget.sound.name,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text,
+                        ),
                       ),
 
                       const SizedBox(height: 12),
 
-                      // Duration
                       FadeTransition(
                         opacity: _fadeAnimation,
                         child: MyText(

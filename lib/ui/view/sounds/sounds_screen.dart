@@ -28,11 +28,9 @@ class _SoundsScreenState extends State<SoundsScreen> {
     if (isFavorite) {
       context.read<SoundsBloc>().add(RemoveFavoriteEvent(id));
       context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
-      HapticFeedback.lightImpact();
     } else {
       context.read<SoundsBloc>().add(AddFavoriteEvent(id));
       context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
-      HapticFeedback.mediumImpact();
     }
   }
 

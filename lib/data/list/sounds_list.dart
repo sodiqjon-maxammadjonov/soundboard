@@ -46,5 +46,10 @@ class SoundsList {
       name: 'tuco: get out',
       assetPath: 'assets/sounds/tuco-get-out.mp3',
     ),
+    Sound(
+      id: 13,
+      name: 'sad violin meme',
+      assetPath: 'assets/sounds/sad_violin.mp3',
+    ),
   ];
 }

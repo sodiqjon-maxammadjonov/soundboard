@@ -7,42 +7,62 @@ abstract class FavoritesRepo {
 
 class FavoritesRepoImpl extends FavoritesRepo {
   final Function(FavoritesState) emitState;
+
   FavoritesRepoImpl(this.emitState);
 
   List<Sound>? _cachedSounds;
+
   @override
   Future<List<Sound>> loadFavoriteSounds({String searchQuery = ''}) async {
     final List<Sound> baseList = SoundsList.sounds;
-    final List<int> favoriteIds = await getFavorites();
+    final List<int> favoriteIds = await getFavorites(); // Bu tartiblangan!
     final List<Sound> favoriteSounds = [];
 
     if (favoriteIds.isEmpty) {
-      emitState(FavoritesLoadingState(
-        loadedSounds: [],
-        allSounds: baseList,
-        favoriteIds: favoriteIds.toSet(),
-        searchQuery: searchQuery,
-      ));
+      _cachedSounds = null; // ✅ Cache ni tozalaymiz
+      emitState(
+        FavoritesLoadingState(
+          loadedSounds: [],
+          allSounds: baseList,
+          favoriteIds: favoriteIds.toSet(),
+          searchQuery: searchQuery,
+        ),
+      );
       return [];
     }
 
-    final filteredList = baseList.where((sound) {
-      final isFavorite = favoriteIds.contains(sound.id);
-      final matchesSearch = searchQuery.isEmpty ||
-          sound.name.toLowerCase().contains(searchQuery.toLowerCase());
-      return isFavorite && matchesSearch;
-    }).toList();
+    // ✅ favoriteIds tartibida soundlarni olamiz
+    final filteredList = <Sound>[];
+    for (final id in favoriteIds) {
+      try {
+        final sound = baseList.firstWhere((s) => s.id == id);
+
+        // Search filterni qo'llaymiz
+        final matchesSearch = searchQuery.isEmpty ||
+            sound.name.toLowerCase().contains(searchQuery.toLowerCase());
+
+        if (matchesSearch) {
+          filteredList.add(sound);
+        }
+      } catch (e) {
+        print("⚠️ Sound with id $id not found in baseList");
+      }
+    }
 
     if (filteredList.isEmpty) {
-      emitState(FavoritesLoadingState(
-        loadedSounds: [],
-        allSounds: baseList,
-        favoriteIds: favoriteIds.toSet(),
-        searchQuery: searchQuery,
-      ));
+      _cachedSounds = null; // ✅ Cache ni tozalaymiz
+      emitState(
+        FavoritesLoadingState(
+          loadedSounds: [],
+          allSounds: baseList,
+          favoriteIds: favoriteIds.toSet(),
+          searchQuery: searchQuery,
+        ),
+      );
       return [];
     }
 
+    // Duration bilan yuklash
     for (final sound in filteredList) {
       try {
         final updated = await _loadWithDuration(sound);
@@ -52,12 +72,14 @@ class FavoritesRepoImpl extends FavoritesRepo {
         favoriteSounds.add(sound.copyWith(duration: null, isFavorite: true));
       }
 
-      emitState(FavoritesLoadingState(
-        loadedSounds: List.from(favoriteSounds),
-        allSounds: baseList,
-        favoriteIds: favoriteIds.toSet(),
-        searchQuery: searchQuery,
-      ));
+      emitState(
+        FavoritesLoadingState(
+          loadedSounds: List.from(favoriteSounds),
+          allSounds: baseList,
+          favoriteIds: favoriteIds.toSet(),
+          searchQuery: searchQuery,
+        ),
+      );
     }
 
     _cachedSounds = favoriteSounds;
@@ -79,11 +101,10 @@ class FavoritesRepoImpl extends FavoritesRepo {
     }
   }
 
-
   Future<List<int>> getFavorites() async {
     try {
-      final favSet = await FavoritesBox.getFavorites();
-      return favSet.toList();
+      final favList = await FavoritesBox.getFavorites();
+      return favList;
     } catch (e) {
       emitState(FavoritesErrorState("Error getting favorites!"));
       return [];
@@ -94,21 +115,10 @@ class FavoritesRepoImpl extends FavoritesRepo {
   Future<void> removeFavorite(int id) async {
     try {
       await FavoritesBox.removeFavorite(id);
-      final favs = await getFavorites();
 
-      if (_cachedSounds != null) {
-        final updatedSounds = _cachedSounds!.map((sound) {
-          if (sound.id == id) return sound.copyWith(isFavorite: false);
-          return sound;
-        }).toList();
+      _cachedSounds = null;
+      await loadFavoriteSounds();
 
-        _cachedSounds = updatedSounds;
-        emitState(FavoritesLoadingState(
-          loadedSounds: updatedSounds,
-          allSounds: updatedSounds,
-          favoriteIds: favs.toSet(),
-        ));
-      }
     } catch (e) {
       emitState(FavoritesErrorState("Error removing favorite"));
     }

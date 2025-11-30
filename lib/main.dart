@@ -1,4 +1,3 @@
-
 import 'data/library/libray.dart';
 
 void main() async {
@@ -16,6 +15,9 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: Providers.providers,
       child: CupertinoApp(
+        theme: CupertinoThemeData(
+          brightness: Brightness.dark,
+        ),
         debugShowCheckedModeBanner: false,
         title: 'Flutter Demo',
         home: const MainScreen(),

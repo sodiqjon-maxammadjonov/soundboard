@@ -25,7 +25,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
     _bannerAd = BannerAd(
       adUnitId: adUnitId,
-      size: AdSize.mediumRectangle, // 300x250 - Grid uchun yaxshiroq!
+      size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
@@ -55,12 +55,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   @override
   Widget build(BuildContext context) {
     if (!_isAdLoaded || _bannerAd == null) {
-      return const SizedBox(
-        height: 250, // Ad yuklanayotganda bo'sh joy
-        child: Center(
-          child: CupertinoActivityIndicator(),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     return Container(
@@ -74,4 +69,5 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
       child: AdWidget(ad: _bannerAd!),
     );
   }
+
 }

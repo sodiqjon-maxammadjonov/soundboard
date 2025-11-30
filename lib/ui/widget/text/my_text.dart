@@ -11,7 +11,7 @@ class MyText extends StatelessWidget {
   const MyText({
     super.key,
     required this.content,
-    this.maxLines = 1,
+    this.maxLines = 3,
     this.textAlign,
     this.fontSize = 16,
     this.fontWeight = FontWeight.w400,
@@ -24,7 +24,7 @@ class MyText extends StatelessWidget {
       content,
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
-      textAlign: textAlign ?? TextAlign.start,
+      textAlign: textAlign ?? TextAlign.center,
       style: GoogleFonts.inter(
         fontSize: fontSize,
         fontWeight: fontWeight,
