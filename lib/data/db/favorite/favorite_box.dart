@@ -18,7 +18,6 @@ class FavoritesBox {
 
     if (!box.values.contains(id)) {
       await box.add(id);
-      // Hozirgi vaqtni milliseconds da saqlaymiz
       await timestampsBox.put(id, DateTime.now().millisecondsSinceEpoch);
     }
   }
@@ -41,20 +40,17 @@ class FavoritesBox {
     final box = await openBox();
     final timestampsBox = await openTimestampsBox();
 
-    // Barcha favorite IDlarni olamiz
     final favoriteIds = box.values.toList();
 
-    // Timestamp bo'yicha tartiblash (eng yangi birinchi)
     favoriteIds.sort((a, b) {
       final timeA = timestampsBox.get(a, defaultValue: 0)!;
       final timeB = timestampsBox.get(b, defaultValue: 0)!;
-      return timeB.compareTo(timeA); // Kamayuvchi tartib
+      return timeB.compareTo(timeA);
     });
 
     return favoriteIds;
   }
 
-  // Set qaytaruvchi eski versiya (agar kerak bo'lsa)
   static Future<Set<int>> getFavoritesSet() async {
     final list = await getFavorites();
     return list.toSet();

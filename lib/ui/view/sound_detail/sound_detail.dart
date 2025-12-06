@@ -24,10 +24,13 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  late bool _isFavorite;
 
   @override
   void initState() {
     super.initState();
+
+    _isFavorite = widget.sound.isFavorite;
 
     _controller = AnimationController(
       vsync: this,
@@ -48,9 +51,19 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
 
     _controller.forward();
   }
+
+  @override
+  void didUpdateWidget(SoundDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sound.isFavorite != widget.sound.isFavorite) {
+      setState(() {
+        _isFavorite = widget.sound.isFavorite;
+      });
+    }
+  }
+
   Future<void> _shareSound() async {
     try {
-      // Loading dialog
       showCupertinoDialog(
         context: context,
         barrierDismissible: false,
@@ -77,7 +90,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
         ),
       );
 
-      // Vaqtinchalik faylni yaratish
       final tempDir = await getTemporaryDirectory();
       final fileName = '${widget.sound.name.replaceAll(' ', '_')}.mp3';
       final tempFilePath = '${tempDir.path}/$fileName';
@@ -150,6 +162,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       );
     }
   }
+
   void _togglePlaySound(Sound sound) {
     HapticFeedback.mediumImpact();
     final playerState = context.read<PlayerBloc>().state;
@@ -161,6 +174,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       context.read<PlayerBloc>().add(PlaySoundEvent(sound));
     }
   }
+
   Future<void> _downloadSound() async {
     try {
       showCupertinoDialog(
@@ -309,7 +323,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
         );
 
         HapticFeedback.mediumImpact();
-
       } else if (status.isPermanentlyDenied) {
         Navigator.of(context).pop();
 
@@ -337,14 +350,15 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
           ),
         );
       } else {
-        // Loading dialog'ni yopish
         Navigator.of(context).pop();
 
         await showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: const Text("Permission Denied"),
-            content: const Text("Storage permission is required to download sounds."),
+            content: const Text(
+              "Storage permission is required to download sounds.",
+            ),
             actions: [
               CupertinoDialogAction(
                 child: const Text("OK"),
@@ -390,6 +404,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       );
     }
   }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -411,7 +426,6 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       backgroundColor: AppColors.background,
       child: Stack(
         children: [
-          // Background gradient
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -426,7 +440,10 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       CupertinoButton(
@@ -456,23 +473,25 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                         child: CupertinoButton(
                           padding: EdgeInsets.zero,
                           onPressed: () {
+                            HapticFeedback.lightImpact();
                             setState(() {
-                              widget.onFavoriteToggle();
-                              HapticFeedback.lightImpact();});
+                              _isFavorite = !_isFavorite;
+                            });
+                            widget.onFavoriteToggle();
                           },
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: widget.sound.isFavorite
+                              color: _isFavorite
                                   ? widget.color.withValues(alpha: 0.2)
                                   : AppColors.background.withValues(alpha: 0.5),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              widget.sound.isFavorite
+                              _isFavorite
                                   ? CupertinoIcons.heart_fill
                                   : CupertinoIcons.heart,
-                              color: widget.sound.isFavorite
+                              color: _isFavorite
                                   ? widget.color
                                   : AppColors.textSecondary,
                               size: 24,
@@ -523,16 +542,19 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                             child: Center(
                               child: _AnimatedWaveformIcon(
                                 color: widget.color,
-                                isPlaying: context.watch<PlayerBloc>().state is SoundPlayerPlayingState &&
-                                    (context.watch<PlayerBloc>().state as SoundPlayerPlayingState)
-                                        .currentSound.id == widget.sound.id,
+                                isPlaying: context.watch<PlayerBloc>().state
+                                is SoundPlayerPlayingState &&
+                                    (context.watch<PlayerBloc>().state
+                                    as SoundPlayerPlayingState)
+                                        .currentSound
+                                        .id ==
+                                        widget.sound.id,
                                 size: 100,
                               ),
                             ),
                           ),
                         ),
                       ),
-
 
                       const SizedBox(height: 40),
 
@@ -557,16 +579,21 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                         ),
                       ),
 
-                      if (widget.sound.isFavorite) ...[
+                      if (_isFavorite) ...[
                         const SizedBox(height: 16),
                         FadeTransition(
                           opacity: _fadeAnimation,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: widget.color.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: widget.color.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                color: widget.color.withValues(alpha: 0.3),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -594,15 +621,12 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
 
                 const Spacer(),
 
-                // BOTTOM BUTTONS
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        // PLAY button
-                        // PLAY button va AnimatedSwitcher
                         SizedBox(
                           width: double.infinity,
                           child: CupertinoButton(
@@ -617,16 +641,22 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                                   duration: const Duration(milliseconds: 300),
                                   child: Builder(
                                     builder: (_) {
-                                      final state = context.watch<PlayerBloc>().state;
-                                      final isPlayingCurrentSound =
-                                          state is SoundPlayerPlayingState &&
-                                              state.currentSound.id == widget.sound.id;
+                                      final state =
+                                          context.watch<PlayerBloc>().state;
+                                      final isPlayingCurrentSound = state
+                                      is SoundPlayerPlayingState &&
+                                          state.currentSound.id ==
+                                              widget.sound.id;
 
                                       return Icon(
                                         isPlayingCurrentSound
                                             ? CupertinoIcons.stop_fill
                                             : CupertinoIcons.play_fill,
-                                        key: ValueKey(isPlayingCurrentSound ? 'stop' : 'play'),
+                                        key: ValueKey(
+                                          isPlayingCurrentSound
+                                              ? 'stop'
+                                              : 'play',
+                                        ),
                                         size: 24,
                                       );
                                     },
@@ -635,14 +665,19 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                                 const SizedBox(width: 12),
                                 Builder(
                                   builder: (_) {
-                                    final state = context.watch<PlayerBloc>().state;
-                                    final isPlayingCurrentSound =
-                                        state is SoundPlayerPlayingState &&
-                                            state.currentSound.id == widget.sound.id;
+                                    final state =
+                                        context.watch<PlayerBloc>().state;
+                                    final isPlayingCurrentSound = state
+                                    is SoundPlayerPlayingState &&
+                                        state.currentSound.id ==
+                                            widget.sound.id;
 
                                     return Text(
                                       isPlayingCurrentSound ? "Stop" : "Play",
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     );
                                   },
                                 ),
@@ -651,14 +686,14 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                           ),
                         ),
 
-
                         const SizedBox(height: 16),
 
                         Row(
                           children: [
                             Expanded(
                               child: CupertinoButton(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                                 color: AppColors.card,
                                 borderRadius: BorderRadius.circular(14),
                                 onPressed: () async {
@@ -687,10 +722,10 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
 
                             const SizedBox(width: 12),
 
-                            // Download
                             Expanded(
                               child: CupertinoButton(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                                 color: AppColors.card,
                                 borderRadius: BorderRadius.circular(14),
                                 onPressed: () {
@@ -721,7 +756,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                       ],
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),

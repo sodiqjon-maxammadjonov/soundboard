@@ -51,5 +51,30 @@ class SoundsList {
       name: 'sad violin meme',
       assetPath: 'assets/sounds/sad_violin.mp3',
     ),
+    Sound(
+      id: 14,
+      name: 'spiderman meme song',
+      assetPath: 'assets/sounds/spiderman-meme-song.mp3',
+    ),
+    Sound(
+      id: 15,
+      name: 'galaxy meme',
+      assetPath: 'assets/sounds/galaxy-meme.mp3',
+    ),
+    Sound(
+      id: 16,
+      name: 'run vine sound',
+      assetPath: 'assets/sounds/run-vine-sound.mp3',
+    ),
+    Sound(
+      id: 17,
+      name: 'cat laugh meme',
+      assetPath: 'assets/sounds/cat-laugh-meme.mp3',
+    ),
+    Sound(
+      id: 18,
+      name: 'outro song',
+      assetPath: 'assets/sounds/outro-song.mp3',
+    ),
   ];
 }

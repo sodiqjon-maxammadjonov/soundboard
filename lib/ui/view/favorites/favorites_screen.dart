@@ -20,16 +20,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();

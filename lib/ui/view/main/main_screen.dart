@@ -1,9 +1,6 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:soundboard/data/const/const_values.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 
 import '../../../data/library/libray.dart';
 
@@ -17,6 +14,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final donateUrl = ConstValues.donateLink;
   int currentIndex = 0;
+
   void _openRateApp() async {
     final InAppReview inAppReview = InAppReview.instance;
     if (await inAppReview.isAvailable()) {
@@ -24,14 +22,45 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  // void _openDonate() async {
-  //   final uri = Uri.parse(donateUrl);
-  //   if (await canLaunchUrl(uri)) {
-  //     await launchUrl(uri, mode: LaunchMode.externalApplication);
-  //   } else {
-  //     print('Could not launch $donateUrl');
-  //   }
-  // }
+  void _openDonate() async {
+    final uri = Uri.parse(donateUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      print('Could not launch $donateUrl');
+    }
+  }
+
+  Future<void> _contactUs() async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: 'maxammatjonov.06@gmail.com',
+      queryParameters: {
+        'subject': 'Feedback / Bug Report',
+        'body': 'Hello,\n\nI would like to share the following feedback or report an issue:\n'
+      },
+    );
+
+    await launchUrl(emailUri);
+  }
+
+  // ✅ YANGI: Tab o'zgarganda chaqiriladi
+  void _onTabChanged(int index) {
+    setState(() {
+      currentIndex = index;
+    });
+
+    // ✅ Agar Favorites tab ga o'tsak, qayta yuklaymiz
+    if (index == 1 && mounted) {
+      // Kichik delay - UI smooth bo'lishi uchun
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,43 +133,64 @@ class _MainScreenState extends State<MainScreen> {
                     return CupertinoActionSheet(
                       title: const Text('Options'),
                       actions: [
-
                         CupertinoActionSheetAction(
                           onPressed: () {
                             Navigator.pop(context);
-                            // BAHOLASH ACTION
                             _openRateApp();
                           },
-                          child: const Text('Rate App'),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '⭐ Rate App',
+                                style: TextStyle(fontSize: 16), // ✅ Kichikroq
+                              ),
+                            ],
+                          ),
                         ),
-
                         CupertinoActionSheetAction(
                           onPressed: () {
                             Navigator.pop(context);
-                            // CONTACT ACTION
-                            // _contactUs();
+                            _contactUs();
                           },
-                          child: const Text('Contact Us'),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '💬 Feedback / Report',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
                         ),
-
                         CupertinoActionSheetAction(
                           onPressed: () {
                             Navigator.pop(context);
-                            // _openDonate();
+                            _openDonate();
                           },
-                          child: const Text('Donate / Support'),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '❤️ Donate / Support',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                       cancelButton: CupertinoActionSheetAction(
                         onPressed: () => Navigator.pop(context),
                         isDefaultAction: true,
-                        child: const Text('Canscel'),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     );
                   },
                 );
               },
-
             ),
           ),
         ],
@@ -191,11 +241,7 @@ class _MainScreenState extends State<MainScreen> {
     final isSelected = currentIndex == index;
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          currentIndex = index;
-        });
-      },
+      onTap: () => _onTabChanged(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
