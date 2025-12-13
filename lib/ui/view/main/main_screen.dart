@@ -44,20 +44,15 @@ class _MainScreenState extends State<MainScreen> {
     await launchUrl(emailUri);
   }
 
-  // ✅ YANGI: Tab o'zgarganda chaqiriladi
   void _onTabChanged(int index) {
     setState(() {
       currentIndex = index;
     });
 
-    // ✅ Agar Favorites tab ga o'tsak, qayta yuklaymiz
     if (index == 1 && mounted) {
-      // Kichik delay - UI smooth bo'lishi uchun
-      Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) {
           context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
         }
-      });
     }
   }
 

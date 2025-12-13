@@ -68,21 +68,24 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               if (playerState is SoundPlayerPlayingState) {
                 playingSoundId = playerState.currentSound.id;
               }
-              return SoundsGrid(
-                searchField: MySearchField(
-                  controller: _searchController,
-                  placeholder: "Search from favorites...",
-                  onChanged: _onSearchChanged,
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: SoundsGrid(
+                  searchField: MySearchField(
+                    controller: _searchController,
+                    placeholder: "Search from favorites...",
+                    onChanged: _onSearchChanged,
+                  ),
+                  sounds: state.loadedSounds,
+                  favorites: state.favoriteIds,
+                  playingSoundId: playingSoundId,
+                  onFavoriteToggle: (sound, isFavorite) {
+                    _toggleFavorite(sound.id, isFavorite);
+                  },
+                  onSoundTap: (sound) {
+                    _togglePlaySound(sound);
+                  },
                 ),
-                sounds: state.loadedSounds,
-                favorites: state.favoriteIds,
-                playingSoundId: playingSoundId,
-                onFavoriteToggle: (sound, isFavorite) {
-                  _toggleFavorite(sound.id, isFavorite);
-                },
-                onSoundTap: (sound) {
-                  _togglePlaySound(sound);
-                },
               );
             },
           );

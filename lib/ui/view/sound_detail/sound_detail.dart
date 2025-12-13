@@ -1,5 +1,8 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as path;
 import 'package:share_plus/share_plus.dart';
+import 'package:soundboard/data/bloc/similar/similar_bloc.dart';
 
 import '../../../data/library/libray.dart';
 
@@ -29,7 +32,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
   @override
   void initState() {
     super.initState();
-
+    context.read<SimilarBloc>().add(LoadSimilarSoundsEvent(currentSound: widget.sound));
     _isFavorite = widget.sound.isFavorite;
 
     _controller = AnimationController(
@@ -67,27 +70,28 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       showCupertinoDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Center(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CupertinoActivityIndicator(radius: 15),
-                const SizedBox(height: 12),
-                MyText(
-                  content: "Preparing to share...",
-                  fontSize: 16,
-                  color: AppColors.text,
+        builder: (context) =>
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CupertinoActivityIndicator(radius: 15),
+                    const SizedBox(height: 12),
+                    MyText(
+                      content: "Preparing to share...",
+                      fontSize: 16,
+                      color: AppColors.text,
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
       );
 
       final tempDir = await getTemporaryDirectory();
@@ -135,46 +139,34 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
 
       await showCupertinoDialog(
         context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(
-                CupertinoIcons.xmark_circle_fill,
-                color: Colors.red,
-                size: 24,
+        builder: (context) =>
+            CupertinoAlertDialog(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    CupertinoIcons.xmark_circle_fill,
+                    color: Colors.red,
+                    size: 24,
+                  ),
+                  SizedBox(width: 8),
+                  Text("Share Failed"),
+                ],
               ),
-              SizedBox(width: 8),
-              Text("Share Failed"),
-            ],
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(e.toString()),
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text("OK"),
-              onPressed: () => Navigator.of(context).pop(),
+              content: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(e.toString()),
+              ),
+              actions: [
+                CupertinoDialogAction(
+                  child: const Text("OK"),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
             ),
-          ],
-        ),
       );
     }
   }
-
-  void _togglePlaySound(Sound sound) {
-    HapticFeedback.mediumImpact();
-    final playerState = context.read<PlayerBloc>().state;
-
-    if (playerState is SoundPlayerPlayingState &&
-        playerState.currentSound.id == sound.id) {
-      context.read<PlayerBloc>().add(StopSoundEvent());
-    } else {
-      context.read<PlayerBloc>().add(PlaySoundEvent(sound));
-    }
-  }
-
   Future<void> _downloadSound() async {
     try {
       showCupertinoDialog(
@@ -193,7 +185,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                 const CupertinoActivityIndicator(radius: 15),
                 const SizedBox(height: 12),
                 MyText(
-                  content: "Downloading...",
+                  content: "Yuklanmoqda...",
                   fontSize: 16,
                   color: AppColors.text,
                 ),
@@ -203,173 +195,108 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
         ),
       );
 
+      // Permission tekshirish
       PermissionStatus status = PermissionStatus.denied;
 
       if (Platform.isAndroid) {
-        status = await Permission.audio.request();
-
-        if (status.isDenied) {
+        if (await _getAndroidVersion() >= 33) {
+          status = await Permission.audio.request();
+        } else if (await _getAndroidVersion() >= 30) {
+          status = await Permission.manageExternalStorage.request();
+        } else {
           status = await Permission.storage.request();
         }
-
-        if (status.isDenied) {
-          status = await Permission.manageExternalStorage.request();
-        }
       } else {
-        status = PermissionStatus.granted;
+        status = await Permission.photos.request();
       }
 
-      if (status.isGranted || status.isLimited) {
-        Directory? directory;
-        String displayPath = "";
-
-        if (Platform.isAndroid) {
-          final possiblePaths = [
-            '/storage/emulated/0/Download/MemeSounds',
-            '/storage/emulated/0/Downloads/MemeSounds',
-            '/sdcard/Download/MemeSounds',
-          ];
-
-          for (var path in possiblePaths) {
-            final dir = Directory(path);
-            try {
-              if (!await dir.exists()) {
-                await dir.create(recursive: true);
-              }
-              if (await dir.exists()) {
-                directory = dir;
-                displayPath = path.contains('Download/')
-                    ? "Download/MemeSounds"
-                    : "Downloads/MemeSounds";
-                break;
-              }
-            } catch (e) {
-              continue;
-            }
-          }
-
-          if (directory == null) {
-            final externalDir = await getExternalStorageDirectory();
-            directory = Directory('${externalDir!.path}/MemeSounds');
-            displayPath = "Music/MemeSounds";
-
-            if (!await directory.exists()) {
-              await directory.create(recursive: true);
-            }
-          }
-        } else {
-          directory = await getApplicationDocumentsDirectory();
-          displayPath = "Files";
-        }
-
-        final fileName = '${widget.sound.name.replaceAll(' ', '_')}.mp3';
-        final filePath = '${directory.path}/$fileName';
-        final file = File(filePath);
-
-        final data = await rootBundle.load(widget.sound.assetPath);
-        await file.writeAsBytes(data.buffer.asUint8List());
-
+      if (!status.isGranted && !status.isLimited) {
         Navigator.of(context).pop();
+        await _showPermissionDialog(status.isPermanentlyDenied);
+        return;
+      }
 
-        await showCupertinoDialog(
-          context: context,
-          builder: (context) => CupertinoAlertDialog(
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      // Papka va fayl nomini tayyorlash
+      final result = await _prepareFileLocation();
+      if (result == null) {
+        throw Exception("Saqlash uchun papka topilmadi");
+      }
+
+      final directory = result['directory'] as Directory;
+      final displayPath = result['displayPath'] as String;
+
+      // Noyob fayl nomini yaratish
+      final baseFileName = _sanitizeFileName(widget.sound.name);
+      final uniqueFile = await _getUniqueFile(directory, baseFileName);
+
+      final fileName = path.basename(uniqueFile.path);
+
+      // Faylni saqlash
+      final data = await rootBundle.load(widget.sound.assetPath);
+      await uniqueFile.writeAsBytes(data.buffer.asUint8List());
+
+      // Android media scanner
+      if (Platform.isAndroid) {
+        await _scanMediaFile(uniqueFile.path);
+      }
+
+      Navigator.of(context).pop();
+
+      // Muvaffaqiyatli dialog
+      await showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.check_mark_circled_solid,
+                color: widget.color,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text("Saqlandi!"),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Column(
               children: [
-                Icon(
-                  CupertinoIcons.check_mark_circled_solid,
-                  color: widget.color,
-                  size: 24,
+                Text(
+                  "Fayl manzili:",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-                const SizedBox(width: 8),
-                const Text("Downloaded!"),
+                const SizedBox(height: 4),
+                Text(
+                  "$displayPath/\n$fileName",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: widget.color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
-            content: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Column(
-                children: [
-                  Text(
-                    "Saved to:",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "$displayPath/\n$fileName",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: widget.color,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text("OK"),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  HapticFeedback.lightImpact();
-                },
-              ),
-            ],
           ),
-        );
-
-        HapticFeedback.mediumImpact();
-      } else if (status.isPermanentlyDenied) {
-        Navigator.of(context).pop();
-
-        await showCupertinoDialog(
-          context: context,
-          builder: (context) => CupertinoAlertDialog(
-            title: const Text("Permission Required"),
-            content: const Text(
-              "Storage permission is required to download sounds. Please enable it in Settings.",
+          actions: [
+            CupertinoDialogAction(
+              child: const Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop();
+                HapticFeedback.lightImpact();
+              },
             ),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text("Cancel"),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              CupertinoDialogAction(
-                isDefaultAction: true,
-                child: const Text("Open Settings"),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  openAppSettings();
-                },
-              ),
-            ],
-          ),
-        );
-      } else {
-        Navigator.of(context).pop();
+          ],
+        ),
+      );
 
-        await showCupertinoDialog(
-          context: context,
-          builder: (context) => CupertinoAlertDialog(
-            title: const Text("Permission Denied"),
-            content: const Text(
-              "Storage permission is required to download sounds.",
-            ),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text("OK"),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-        );
-      }
+      HapticFeedback.mediumImpact();
     } catch (e) {
-      print("Download error: $e");
+      print("Yuklab olishda xato: $e");
 
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
@@ -387,12 +314,15 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                 size: 24,
               ),
               SizedBox(width: 8),
-              Text("Download Failed"),
+              Text("Xatolik"),
             ],
           ),
           content: Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(e.toString()),
+            child: Text(
+              "Faylni yuklab bo'lmadi.\n${e.toString()}",
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
           actions: [
             CupertinoDialogAction(
@@ -405,6 +335,177 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
     }
   }
 
+// Fayl nomini tozalash (maxsus belgilarni olib tashlash)
+  String _sanitizeFileName(String name) {
+    // Faqat harflar, raqamlar, probel, tire va pastki chiziqni qoldirish
+    String sanitized = name.replaceAll(RegExp(r'[^\w\s-]'), '');
+    // Bir nechta probelni bitta probelga almashtirish
+    sanitized = sanitized.replaceAll(RegExp(r'\s+'), ' ');
+    // Probel o'rniga pastki chiziq qo'yish
+    sanitized = sanitized.replaceAll(' ', '_');
+    // Maksimal 50 belgi
+    if (sanitized.length > 50) {
+      sanitized = sanitized.substring(0, 50);
+    }
+    return sanitized;
+  }
+
+// Noyob fayl nomini topish
+  Future<File> _getUniqueFile(Directory directory, String baseName) async {
+    String fileName = '$baseName.mp3';
+    File file = File('${directory.path}/$fileName');
+    int counter = 1;
+
+    // Agar fayl mavjud bo'lsa, raqam qo'shib yangi nom yaratish
+    while (await file.exists()) {
+      fileName = '${baseName}_$counter.mp3';
+      file = File('${directory.path}/$fileName');
+      counter++;
+    }
+
+    return file;
+  }
+
+// Papka manzilini tayyorlash
+  Future<Map<String, dynamic>?> _prepareFileLocation() async {
+    Directory? directory;
+    String displayPath = "";
+
+    if (Platform.isAndroid) {
+      // Android 10+ uchun
+      final possiblePaths = [
+        '/storage/emulated/0/Download/MemeSounds',
+        '/storage/emulated/0/Downloads/MemeSounds',
+        '/storage/emulated/0/Music/MemeSounds',
+      ];
+
+      for (var path in possiblePaths) {
+        final dir = Directory(path);
+        try {
+          if (!await dir.exists()) {
+            await dir.create(recursive: true);
+          }
+          if (await dir.exists()) {
+            directory = dir;
+            if (path.contains('Music')) {
+              displayPath = "Music/MemeSounds";
+            } else if (path.contains('Downloads')) {
+              displayPath = "Downloads/MemeSounds";
+            } else {
+              displayPath = "Download/MemeSounds";
+            }
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // Agar yuqoridagi papkalar ishlamasa
+      if (directory == null) {
+        final externalDir = await getExternalStorageDirectory();
+        if (externalDir != null) {
+          directory = Directory('${externalDir.path}/MemeSounds');
+          displayPath = "Internal Storage/MemeSounds";
+          if (!await directory.exists()) {
+            await directory.create(recursive: true);
+          }
+        }
+      }
+    } else {
+      // iOS uchun
+      directory = await getApplicationDocumentsDirectory();
+      displayPath = "Files/MemeSounds";
+      final finalDir = Directory('${directory.path}/MemeSounds');
+      if (!await finalDir.exists()) {
+        await finalDir.create(recursive: true);
+      }
+      directory = finalDir;
+    }
+
+    if (directory == null) return null;
+
+    return {
+      'directory': directory,
+      'displayPath': displayPath,
+    };
+  }
+
+// Android versiyasini olish
+  Future<int> _getAndroidVersion() async {
+    if (Platform.isAndroid) {
+      var androidInfo = await DeviceInfoPlugin().androidInfo;
+      return androidInfo.version.sdkInt;
+    }
+    return 0;
+  }
+
+// Media faylni skanerlash (Androidda galereya va boshqa ilovalarda ko'rinishi uchun)
+  Future<void> _scanMediaFile(String filePath) async {
+    if (Platform.isAndroid) {
+      try {
+        const platform = MethodChannel('media_scanner');
+        await platform.invokeMethod('scanFile', {'path': filePath});
+      } catch (e) {
+        print("Media scanner xatosi: $e");
+      }
+    }
+  }
+
+// Permission dialog
+  Future<void> _showPermissionDialog(bool isPermanentlyDenied) async {
+    await showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text("Ruxsat kerak"),
+        content: Text(
+          isPermanentlyDenied
+              ? "Fayllarni saqlash uchun ruxsat kerak. Iltimos, Sozlamalardan yoqing."
+              : "Fayllarni saqlash uchun xotiradagi faylarga ruxsat bering.",
+        ),
+        actions: [
+          if (!isPermanentlyDenied)
+            CupertinoDialogAction(
+              child: const Text("Bekor qilish"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: Text(isPermanentlyDenied ? "Sozlamalar" : "OK"),
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (isPermanentlyDenied) {
+                openAppSettings();
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toggleFavorite(int id, bool isFavorite) {
+    if (isFavorite) {
+      context.read<SoundsBloc>().add(RemoveFavoriteEvent(id));
+      context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
+
+    } else {
+      context.read<SoundsBloc>().add(AddFavoriteEvent(id));
+      context.read<FavoritesBloc>().add(LoadFavoriteSoundsEvent());
+    }
+  }
+
+  void _togglePlaySound(Sound sound) {
+    HapticFeedback.mediumImpact();
+    final playerState = context.read<PlayerBloc>().state;
+
+    if (playerState is SoundPlayerPlayingState &&
+        playerState.currentSound.id == sound.id) {
+      context.read<PlayerBloc>().add(StopSoundEvent());
+    } else {
+      context.read<PlayerBloc>().add(PlaySoundEvent(sound));
+    }
+  }
   @override
   void dispose() {
     _controller.dispose();
@@ -437,327 +538,406 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
           ),
 
           SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.of(context).pop();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.background.withValues(alpha: 0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.back,
-                            color: AppColors.accent,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: CupertinoButton(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        CupertinoButton(
                           padding: EdgeInsets.zero,
                           onPressed: () {
                             HapticFeedback.lightImpact();
-                            setState(() {
-                              _isFavorite = !_isFavorite;
-                            });
-                            widget.onFavoriteToggle();
+                            Navigator.of(context).pop();
                           },
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: _isFavorite
-                                  ? widget.color.withValues(alpha: 0.2)
-                                  : AppColors.background.withValues(alpha: 0.5),
+                              color: AppColors.background.withValues(
+                                  alpha: 0.5),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
-                              _isFavorite
-                                  ? CupertinoIcons.heart_fill
-                                  : CupertinoIcons.heart,
-                              color: _isFavorite
-                                  ? widget.color
-                                  : AppColors.textSecondary,
+                            child: const Icon(
+                              CupertinoIcons.back,
+                              color: AppColors.accent,
                               size: 24,
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
 
-                const Spacer(),
+                        const Spacer(),
 
-                ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Column(
-                    children: [
-                      Hero(
-                        tag: "sound_icon_${widget.sound.id}",
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.mediumImpact();
-                            _togglePlaySound(widget.sound);
-                          },
-                          child: Container(
-                            width: 220,
-                            height: 220,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  widget.color.withValues(alpha: 0.3),
-                                  widget.color.withValues(alpha: 0.1),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(40),
-                              border: Border.all(
-                                color: widget.color.withValues(alpha: 0.3),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: widget.color.withValues(alpha: 0.3),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: _AnimatedWaveformIcon(
-                                color: widget.color,
-                                isPlaying: context.watch<PlayerBloc>().state
-                                is SoundPlayerPlayingState &&
-                                    (context.watch<PlayerBloc>().state
-                                    as SoundPlayerPlayingState)
-                                        .currentSound
-                                        .id ==
-                                        widget.sound.id,
-                                size: 100,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                        child: MyText(
-                          content: widget.sound.name,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: MyText(
-                          content: "Duration: $durationText",
-                          fontSize: 16,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-
-                      if (_isFavorite) ...[
-                        const SizedBox(height: 16),
                         FadeTransition(
                           opacity: _fadeAnimation,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: widget.color.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: widget.color.withValues(alpha: 0.3),
+                          child: CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                _isFavorite = !_isFavorite;
+                              });
+                              widget.onFavoriteToggle();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: _isFavorite
+                                    ? widget.color.withValues(alpha: 0.2)
+                                    : AppColors.background.withValues(
+                                    alpha: 0.5),
+                                shape: BoxShape.circle,
                               ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  CupertinoIcons.heart_fill,
-                                  color: widget.color,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                MyText(
-                                  content: "Favorited",
-                                  fontSize: 14,
-                                  color: widget.color,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ],
+                              child: Icon(
+                                _isFavorite
+                                    ? CupertinoIcons.heart_fill
+                                    : CupertinoIcons.heart,
+                                color: _isFavorite
+                                    ? widget.color
+                                    : AppColors.textSecondary,
+                                size: 24,
+                              ),
                             ),
                           ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
 
-                const Spacer(),
+                  const SizedBox(height: 60),
 
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
+                  // Sound icon va details
+                  ScaleTransition(
+                    scale: _scaleAnimation,
                     child: Column(
                       children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: CupertinoButton(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            color: widget.color,
-                            borderRadius: BorderRadius.circular(16),
-                            onPressed: () => _togglePlaySound(widget.sound),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: Builder(
+                        Hero(
+                          tag: "sound_icon_${widget.sound.id}",
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              _togglePlaySound(widget.sound);
+                            },
+                            child: Container(
+                              width: 220,
+                              height: 220,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    widget.color.withValues(alpha: 0.3),
+                                    widget.color.withValues(alpha: 0.1),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(40),
+                                border: Border.all(
+                                  color: widget.color.withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: widget.color.withValues(alpha: 0.3),
+                                    blurRadius: 30,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: _AnimatedWaveformIcon(
+                                  color: widget.color,
+                                  isPlaying: context
+                                      .watch<PlayerBloc>()
+                                      .state
+                                  is SoundPlayerPlayingState &&
+                                      (context
+                                          .watch<PlayerBloc>()
+                                          .state
+                                      as SoundPlayerPlayingState)
+                                          .currentSound
+                                          .id ==
+                                          widget.sound.id,
+                                  size: 100,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: MyText(
+                            content: widget.sound.name,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text,
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: MyText(
+                            content: "Duration: $durationText",
+                            fontSize: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+
+                        if (_isFavorite) ...[
+                          const SizedBox(height: 16),
+                          FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: widget.color.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: widget.color.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    CupertinoIcons.heart_fill,
+                                    color: widget.color,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  MyText(
+                                    content: "Favorited",
+                                    fontSize: 14,
+                                    color: widget.color,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  // Play va Download buttons
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: CupertinoButton(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              color: widget.color,
+                              borderRadius: BorderRadius.circular(16),
+                              onPressed: () => _togglePlaySound(widget.sound),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Builder(
+                                      builder: (_) {
+                                        final state =
+                                            context
+                                                .watch<PlayerBloc>()
+                                                .state;
+                                        final isPlayingCurrentSound = state
+                                        is SoundPlayerPlayingState &&
+                                            state.currentSound.id ==
+                                                widget.sound.id;
+
+                                        return Icon(
+                                          isPlayingCurrentSound
+                                              ? CupertinoIcons.stop_fill
+                                              : CupertinoIcons.play_fill,
+                                          key: ValueKey(
+                                            isPlayingCurrentSound
+                                                ? 'stop'
+                                                : 'play',
+                                          ),
+                                          size: 24,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Builder(
                                     builder: (_) {
                                       final state =
-                                          context.watch<PlayerBloc>().state;
+                                          context
+                                              .watch<PlayerBloc>()
+                                              .state;
                                       final isPlayingCurrentSound = state
                                       is SoundPlayerPlayingState &&
                                           state.currentSound.id ==
                                               widget.sound.id;
 
-                                      return Icon(
-                                        isPlayingCurrentSound
-                                            ? CupertinoIcons.stop_fill
-                                            : CupertinoIcons.play_fill,
-                                        key: ValueKey(
-                                          isPlayingCurrentSound
-                                              ? 'stop'
-                                              : 'play',
+                                      return Text(
+                                        isPlayingCurrentSound ? "Stop" : "Play",
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        size: 24,
                                       );
                                     },
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Builder(
-                                  builder: (_) {
-                                    final state =
-                                        context.watch<PlayerBloc>().state;
-                                    final isPlayingCurrentSound = state
-                                    is SoundPlayerPlayingState &&
-                                        state.currentSound.id ==
-                                            widget.sound.id;
-
-                                    return Text(
-                                      isPlayingCurrentSound ? "Stop" : "Play",
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
 
-                        const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child: CupertinoButton(
-                                padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                                color: AppColors.card,
-                                borderRadius: BorderRadius.circular(14),
-                                onPressed: () async {
-                                  HapticFeedback.lightImpact();
-                                  await _shareSound();
-                                },
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      CupertinoIcons.share,
-                                      color: widget.color,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    MyText(
-                                      content: "Send",
-                                      fontSize: 16,
-                                      color: widget.color,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: CupertinoButton(
+                                  padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                                  color: AppColors.card,
+                                  borderRadius: BorderRadius.circular(14),
+                                  onPressed: () async {
+                                    HapticFeedback.lightImpact();
+                                    await _shareSound();
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        CupertinoIcons.share,
+                                        color: widget.color,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      MyText(
+                                        content: "Send",
+                                        fontSize: 16,
+                                        color: widget.color,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
 
-                            const SizedBox(width: 12),
+                              const SizedBox(width: 12),
 
-                            Expanded(
-                              child: CupertinoButton(
-                                padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                                color: AppColors.card,
-                                borderRadius: BorderRadius.circular(14),
-                                onPressed: () {
-                                  HapticFeedback.lightImpact();
-                                  _downloadSound();
-                                },
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      CupertinoIcons.arrow_down_circle,
-                                      color: widget.color,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    MyText(
-                                      content: "Download",
-                                      fontSize: 16,
-                                      color: widget.color,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ],
+                              Expanded(
+                                child: CupertinoButton(
+                                  padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                                  color: AppColors.card,
+                                  borderRadius: BorderRadius.circular(14),
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    _downloadSound();
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        CupertinoIcons.arrow_down_circle,
+                                        color: widget.color,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      MyText(
+                                        content: "Download",
+                                        fontSize: 16,
+                                        color: widget.color,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+
+                          const SizedBox(height: 32),
+                          Row(
+                            children: [
+                              Icon(
+                                CupertinoIcons.waveform,
+                                color: widget.color,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              MyText(
+                                content: "Sounds",
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          BlocBuilder<SimilarBloc, SimilarState>(
+                            buildWhen: (previous, current) => true,
+                            builder: (context, state) {
+                              if (state is SimilarInitial) {
+                                return const Center(
+                                  child: MyText(
+                                    content: "No similar Sounds",
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                );
+                              } else if (state is SimilarSoundsLoadingProgressState) {
+                                return BlocBuilder<PlayerBloc, SoundPlayerState>(
+                                  builder: (context, playerState) {
+                                    int? playingSoundId;
+                                    if (playerState is SoundPlayerPlayingState) {
+                                      playingSoundId = playerState.currentSound.id;
+                                    }
+
+                                    return SoundsGrid(
+                                      searchField: const SizedBox.shrink(),
+                                      sounds: state.loadedSounds,
+                                      favorites: state.favoriteIds,
+                                      playingSoundId: playingSoundId,
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      onFavoriteToggle: (sound, isFavorite) {
+                                        _toggleFavorite(sound.id, isFavorite);
+                                      },
+                                      onSoundTap: (sound) {
+                                        _togglePlaySound(sound);
+                                      },
+                                    );
+                                  },
+                                );
+                              } else if (state is SimilarSoundsErrorState) {
+                                return Center(child: MyText(content: state.message));
+                              } else {
+                                return const SizedBox.shrink();
+                              }
+                            },
+                          )
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ],

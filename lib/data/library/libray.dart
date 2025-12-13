@@ -32,5 +32,7 @@ export 'package:soundboard/data/repo/sounds/sounds_repo.dart';
 export 'package:in_app_review/in_app_review.dart';
 export 'package:soundboard/ui/view/favorites/favorites_screen.dart';
 export 'package:soundboard/ui/view/sounds/sounds_screen.dart';
+export 'package:soundboard/data/repo/similar/similar_repo.dart';
+
 
 
