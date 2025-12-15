@@ -185,7 +185,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                 const CupertinoActivityIndicator(radius: 15),
                 const SizedBox(height: 12),
                 MyText(
-                  content: "Yuklanmoqda...",
+                  content: "Downloading...",
                   fontSize: 16,
                   color: AppColors.text,
                 ),
@@ -219,7 +219,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
       // Papka va fayl nomini tayyorlash
       final result = await _prepareFileLocation();
       if (result == null) {
-        throw Exception("Saqlash uchun papka topilmadi");
+        throw Exception("No folder found to save to");
       }
 
       final directory = result['directory'] as Directory;
@@ -255,7 +255,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                 size: 24,
               ),
               const SizedBox(width: 8),
-              const Text("Saqlandi!"),
+              const Text("Saved!"),
             ],
           ),
           content: Padding(
@@ -263,7 +263,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
             child: Column(
               children: [
                 Text(
-                  "Fayl manzili:",
+                  "File path:",
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -314,13 +314,13 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
                 size: 24,
               ),
               SizedBox(width: 8),
-              Text("Xatolik"),
+              Text("Error!"),
             ],
           ),
           content: Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              "Faylni yuklab bo'lmadi.\n${e.toString()}",
+              "File could not be downloaded.\n${e.toString()}",
               style: const TextStyle(fontSize: 14),
             ),
           ),
@@ -460,8 +460,8 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
         title: const Text("Ruxsat kerak"),
         content: Text(
           isPermanentlyDenied
-              ? "Fayllarni saqlash uchun ruxsat kerak. Iltimos, Sozlamalardan yoqing."
-              : "Fayllarni saqlash uchun xotiradagi faylarga ruxsat bering.",
+              ? "Permission is required to save files. Please enable it in Settings."
+              : "Allow files in memory to save files.",
         ),
         actions: [
           if (!isPermanentlyDenied)
@@ -471,7 +471,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
             ),
           CupertinoDialogAction(
             isDefaultAction: true,
-            child: Text(isPermanentlyDenied ? "Sozlamalar" : "OK"),
+            child: Text(isPermanentlyDenied ? "Settings" : "OK"),
             onPressed: () {
               Navigator.of(context).pop();
               if (isPermanentlyDenied) {
@@ -513,7 +513,7 @@ class _SoundDetailScreenState extends State<SoundDetailScreen>
   }
 
   String _formatDuration(Duration? d) {
-    if (d == null) return "Noma'lum";
+    if (d == null) return "Unknown";
     final minutes = d.inMinutes;
     final seconds = d.inSeconds % 60;
     return "$minutes:${seconds.toString().padLeft(2, '0')}";
