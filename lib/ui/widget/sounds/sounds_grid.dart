@@ -8,8 +8,8 @@ class SoundsGrid extends StatelessWidget {
   final void Function(Sound) onSoundTap;
   final void Function(Sound, bool) onFavoriteToggle;
   final Widget searchField;
-  final bool shrinkWrap; // ← YANGI
-  final ScrollPhysics? physics; // ← YANGI
+  final bool shrinkWrap;
+  final ScrollPhysics? physics;
 
   const SoundsGrid({
     super.key,
@@ -19,15 +19,19 @@ class SoundsGrid extends StatelessWidget {
     required this.onSoundTap,
     required this.onFavoriteToggle,
     required this.searchField,
-    this.shrinkWrap = false, // ← YANGI
-    this.physics, // ← YANGI
+    this.shrinkWrap = false,
+    this.physics,
   });
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Tablet uchun 3 ustun, telefon uchun 2 ustun
+    final crossAxisCount = screenWidth > 600 ? 3 : 2;
+
     return CustomScrollView(
-      shrinkWrap: shrinkWrap, // ← YANGI
-      physics: physics ?? const BouncingScrollPhysics(), // ← YANGI
+      shrinkWrap: shrinkWrap,
+      physics: physics ?? const BouncingScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(child: searchField),
         SliverList(
@@ -38,12 +42,15 @@ class SoundsGrid extends StatelessWidget {
               int currentIndex = 0;
 
               while (true) {
+                // Har 6 ta sound dan keyin reklama
                 if (soundIndex > 0 && soundIndex % adInterval == 0) {
                   if (currentIndex == index) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Center(
-                        child: BannerAdWidget(key: ValueKey('ad_${soundIndex ~/ adInterval}')),
+                        child: BannerAdWidget(
+                          key: ValueKey('ad_${soundIndex ~/ adInterval}'),
+                        ),
                       ),
                     );
                   }
@@ -51,78 +58,99 @@ class SoundsGrid extends StatelessWidget {
                 }
 
                 if (currentIndex == index) {
-                  final leftSound = sounds[soundIndex];
-                  final leftColor = _getAccentColor(soundIndex);
-                  final leftIsFavorite = favorites.contains(leftSound.id);
-                  final leftIsPlaying = playingSoundId == leftSound.id;
+                  // Qatorga joylashtirish uchun sound'larni olish
+                  List<Sound?> rowSounds = [];
+                  List<Color> rowColors = [];
+                  List<bool> rowFavorites = [];
+                  List<bool> rowPlayingStates = [];
 
-                  Sound? rightSound;
-                  Color? rightColor;
-                  bool? rightIsFavorite;
-                  bool? rightIsPlaying;
-
-                  if (soundIndex + 1 < sounds.length) {
-                    rightSound = sounds[soundIndex + 1];
-                    rightColor = _getAccentColor(soundIndex + 1);
-                    rightIsFavorite = favorites.contains(rightSound.id);
-                    rightIsPlaying = playingSoundId == rightSound.id;
+                  for (int i = 0; i < crossAxisCount; i++) {
+                    if (soundIndex + i < sounds.length) {
+                      final sound = sounds[soundIndex + i];
+                      rowSounds.add(sound);
+                      rowColors.add(_getAccentColor(soundIndex + i));
+                      rowFavorites.add(favorites.contains(sound.id));
+                      rowPlayingStates.add(playingSoundId == sound.id);
+                    } else {
+                      rowSounds.add(null);
+                      rowColors.add(AppColors.accent);
+                      rowFavorites.add(false);
+                      rowPlayingStates.add(false);
+                    }
                   }
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: Row(
-                      children: [
-                        Expanded(
-                          child: _SoundCard(
-                            sound: leftSound,
-                            color: leftColor,
-                            isFavorite: leftIsFavorite,
-                            isPlaying: leftIsPlaying,
-                            onTap: () => onSoundTap(leftSound),
-                            onFavoriteToggle: () => onFavoriteToggle(leftSound, leftIsFavorite),
-                          ),
-                        ),
-                        if (rightSound != null) ...[
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _SoundCard(
-                              sound: rightSound,
-                              color: rightColor!,
-                              isFavorite: rightIsFavorite!,
-                              isPlaying: rightIsPlaying!,
-                              onTap: () => onSoundTap(rightSound!),
-                              onFavoriteToggle: () => onFavoriteToggle(rightSound!, rightIsFavorite!),
-                            ),
-                          ),
-                        ] else
-                          const Expanded(child: SizedBox()),
-                      ],
+                      children: List.generate(crossAxisCount, (i) {
+                        if (i > 0) {
+                          return [
+                            const SizedBox(width: 14),
+                            if (rowSounds[i] != null)
+                              Expanded(
+                                child: _SoundCard(
+                                  sound: rowSounds[i]!,
+                                  color: rowColors[i],
+                                  isFavorite: rowFavorites[i],
+                                  isPlaying: rowPlayingStates[i],
+                                  onTap: () => onSoundTap(rowSounds[i]!),
+                                  onFavoriteToggle: () => onFavoriteToggle(
+                                    rowSounds[i]!,
+                                    rowFavorites[i],
+                                  ),
+                                ),
+                              )
+                            else
+                              const Expanded(child: SizedBox()),
+                          ];
+                        } else {
+                          return [
+                            if (rowSounds[i] != null)
+                              Expanded(
+                                child: _SoundCard(
+                                  sound: rowSounds[i]!,
+                                  color: rowColors[i],
+                                  isFavorite: rowFavorites[i],
+                                  isPlaying: rowPlayingStates[i],
+                                  onTap: () => onSoundTap(rowSounds[i]!),
+                                  onFavoriteToggle: () => onFavoriteToggle(
+                                    rowSounds[i]!,
+                                    rowFavorites[i],
+                                  ),
+                                ),
+                              )
+                            else
+                              const Expanded(child: SizedBox()),
+                          ];
+                        }
+                      }).expand((widget) => widget).toList(),
                     ),
                   );
                 }
 
-                soundIndex += 2;
+                soundIndex += crossAxisCount;
                 currentIndex++;
                 if (soundIndex >= sounds.length) break;
               }
 
               return const SizedBox.shrink();
             },
-            childCount: _calculateItemCount(),
+            childCount: _calculateItemCount(screenWidth),
           ),
         ),
       ],
     );
   }
 
-  int _calculateItemCount() {
+  int _calculateItemCount(double screenWidth) {
+    final crossAxisCount = screenWidth > 600 ? 3 : 2;
     final adInterval = 6;
     int soundCounter = 0;
     int totalItems = 0;
 
     while (soundCounter < sounds.length) {
       totalItems++; // Row
-      soundCounter += 2;
+      soundCounter += crossAxisCount;
       if (soundCounter % adInterval == 0 && soundCounter < sounds.length) {
         totalItems++; // Ad
       }
@@ -166,13 +194,15 @@ class _SoundCard extends StatelessWidget {
     return GestureDetector(
       onLongPress: () {
         Navigator.push(
-            context,
-            CupertinoPageRoute(
-                builder: (context) => SoundDetailScreen(
-                  sound: sound,
-                  color: color,
-                  onFavoriteToggle: onFavoriteToggle,
-                )));
+          context,
+          CupertinoPageRoute(
+            builder: (context) => SoundDetailScreen(
+              sound: sound,
+              color: color,
+              onFavoriteToggle: onFavoriteToggle,
+            ),
+          ),
+        );
       },
       onTap: onTap,
       child: AnimatedContainer(

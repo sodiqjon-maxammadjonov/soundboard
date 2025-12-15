@@ -21,6 +21,14 @@ class _MainScreenState extends State<MainScreen> {
       inAppReview.requestReview();
     }
   }
+  void _openPrivacyPolicy() async {
+    final Uri url = Uri.parse('https://sites.google.com/view/memesounds-privacy/home');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      print('Could not launch Privacy Policy URL');
+    }
+  }
 
   void _openDonate() async {
     final uri = Uri.parse(donateUrl);
@@ -173,6 +181,22 @@ class _MainScreenState extends State<MainScreen> {
                             ],
                           ),
                         ),
+                        CupertinoActionSheetAction(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _openPrivacyPolicy();
+                          },
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '🔒 Privacy Policy',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+
                       ],
                       cancelButton: CupertinoActionSheetAction(
                         onPressed: () => Navigator.pop(context),

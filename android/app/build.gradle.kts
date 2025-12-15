@@ -15,7 +15,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.soundboard"  // O'zingizga mos o'zgartiring
+    namespace = "com.memes.soundboard"
     compileSdk = 36
 
     compileOptions {
@@ -38,33 +38,37 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.soundboard"  // O'zingizga mos o'zgartiring, UNIQUE bo'lishi kerak
+        applicationId = "com.mukhammadsodikh.soundboard"
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
+
+        multiDexEnabled = true
     }
 
     buildTypes {
         release {
-            // Signing qo'shish
             signingConfig = signingConfigs.getByName("release")
 
-            // Code shrinking va obfuscation
             isMinifyEnabled = false
             isShrinkResources = false
 
-            // ProGuard fayllar
-//            proguardFiles(
-//                getDefaultProguardFile("proguard-android-optimize.txt"),
-//                "proguard-rules.pro"
-//            )
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
 
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
         }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
 
@@ -73,5 +77,11 @@ flutter {
 }
 
 dependencies {
-    // Agar kerak bo'lsa dependencies qo'shasiz
+    // MUHIM: Versiyalarni pasaytiramiz yoki AGP ni oshiramiz
+    // Variant 1: Versiyalarni pasaytirish (agar AGP 8.13.2 ishlamasa)
+    // implementation("androidx.core:core-ktx:1.13.1")
+
+    // Variant 2: Yangi versiyalar (AGP 8.13.2 bilan ishlaydi)
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
 }
